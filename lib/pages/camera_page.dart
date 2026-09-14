@@ -208,7 +208,20 @@ class _CameraPageState extends State<CameraPage> {
                     fit: StackFit.expand,
                     children: [
                       if (_cameraController != null)
-                        CameraPreview(_cameraController!)
+                        FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _cameraController!
+                                .value
+                                .previewSize!
+                                .height,
+                            height: _cameraController!
+                                .value
+                                .previewSize!
+                                .width,
+                            child: CameraPreview(_cameraController!),
+                          ),
+                        )
                       else
                         const ColoredBox(
                           color: Colors.black,
