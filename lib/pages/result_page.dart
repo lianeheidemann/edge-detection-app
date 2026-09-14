@@ -31,9 +31,15 @@ class _ResultPageState extends State<ResultPage> {
       final originalImage = img.decodeImage(originalBytes);
       if (originalImage == null) throw StateError('Invalid image');
 
+      final originalFile = File(widget.imagePath);
+      final folder = originalFile.parent.path;
+      final baseName = originalFile.uri.pathSegments.last;
+      final stem = baseName.contains('.')
+          ? baseName.substring(0, baseName.lastIndexOf('.'))
+          : baseName;
+
       final grayscale = img.grayscale(originalImage);
-      final folder = File(widget.imagePath).parent.path;
-      final grayscaleFile = File('$folder/grayscale.png')
+      final grayscaleFile = File('$folder/${stem}_grayscale.png')
         ..writeAsBytesSync(img.encodePng(grayscale));
 
       final edgeDetected = img.Image.from(grayscale);
@@ -46,7 +52,7 @@ class _ResultPageState extends State<ResultPage> {
         }
       }
 
-      final edgeFile = File('$folder/edges.png')
+      final edgeFile = File('$folder/${stem}_edges.png')
         ..writeAsBytesSync(img.encodePng(edgeDetected));
       if (!mounted) return;
       setState(() {
