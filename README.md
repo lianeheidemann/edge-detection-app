@@ -24,7 +24,7 @@
 
 ## Interface
 
-<img src="assets/edge-detection-interface-v2.png" />
+<img src="assets/edge-detection-interface-v1.png" />
 
 ## Overview
 
