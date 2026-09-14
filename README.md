@@ -1,6 +1,6 @@
 <p align="center">
   <img src="assets/icons/app-icon.svg"
-       width="220"
+       width="180"
        alt="Image processing icon">
 </p>
 
