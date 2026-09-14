@@ -33,12 +33,12 @@ class _ResultPageState extends State<ResultPage> {
       final originalImage = img.decodeImage(originalBytes);
       if (originalImage == null) throw StateError('Invalid image');
 
-      final grayscale = img.grayscale(originalImage);
+      final grayscale = img.grayscale(img.Image.from(originalImage));
       final folder = File(widget.imagePath).parent.path;
       final grayscaleFile = File('$folder/grayscale.png')
         ..writeAsBytesSync(img.encodePng(grayscale));
 
-      final edgePngBytes = await compute(_detectEdgesPng, grayscale);
+      final edgePngBytes = await compute(_detectEdgesPng, originalImage);
       final edgeFile = File('$folder/edges.png')
         ..writeAsBytesSync(edgePngBytes);
       if (!mounted) return;
@@ -166,8 +166,8 @@ class _ResultPageState extends State<ResultPage> {
 /// Runs the Canny-style edge detection pipeline and encodes the result as
 /// PNG bytes. Must stay top-level (no closures over State/BuildContext) so
 /// it can be dispatched to a background isolate via [compute].
-Uint8List _detectEdgesPng(img.Image grayscale) {
-  return img.encodePng(detectEdges(grayscale));
+Uint8List _detectEdgesPng(img.Image source) {
+  return img.encodePng(detectEdges(source));
 }
 
 class _ResultThumbnail extends StatelessWidget {

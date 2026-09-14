@@ -5,16 +5,19 @@ import 'package:image/image.dart' as img;
 
 /// Parameters for the Canny-style edge detection pipeline.
 ///
-/// Threshold values are tuned for gradient magnitudes produced by a 3x3
-/// Sobel operator on an 8-bit luminance image after a 5x5 (radius 2)
-/// Gaussian blur. They are fixed constants rather than user-tunable UI
-/// controls; adjust here if real-world captures show too many/too few
-/// edges.
+/// Threshold values are tuned for gradient magnitudes produced by the
+/// multichannel (RGB) Sobel operator on an 8-bit image after a 5x5
+/// (radius 2) Gaussian blur. For color-neutral content the multichannel
+/// gradient magnitude is `sqrt(3)` times a single-channel (luminance-only)
+/// Sobel magnitude, so these are scaled up from the single-channel values
+/// that would otherwise apply (roughly 30/70). They are fixed constants
+/// rather than user-tunable UI controls; adjust here if real-world
+/// captures show too many/too few edges.
 class CannyParams {
   const CannyParams({
     this.gaussianRadius = 2,
-    this.lowThreshold = 30,
-    this.highThreshold = 70,
+    this.lowThreshold = 50,
+    this.highThreshold = 120,
   });
 
   final int gaussianRadius;
@@ -22,31 +25,47 @@ class CannyParams {
   final double highThreshold;
 }
 
-/// Runs a Canny-style pipeline (Gaussian blur -> Sobel gradients ->
-/// non-maximum suppression -> double-threshold hysteresis) on an
-/// already-grayscale [img.Image] and returns a new binary (0/255) edge
-/// image with the same dimensions and channel format as [grayscale].
+/// Runs a Canny-style pipeline (Gaussian blur -> multichannel Sobel
+/// gradients -> non-maximum suppression -> double-threshold hysteresis) on
+/// [source] and returns a new binary (0/255) edge image with the same
+/// dimensions and channel format as [source].
+///
+/// Gradients are computed from all three RGB channels (see
+/// [colorSobelGradients]) rather than from luminance alone, so [source]
+/// should be the original color image, not one already converted to
+/// grayscale — a luminance-only gradient cannot see a boundary between two
+/// iso-luminant colors (e.g. a colorful sunset sky).
 img.Image detectEdges(
-  img.Image grayscale, {
+  img.Image source, {
   CannyParams params = const CannyParams(),
 }) {
-  final width = grayscale.width;
-  final height = grayscale.height;
+  final width = source.width;
+  final height = source.height;
 
   final blurred = img.gaussianBlur(
-    img.Image.from(grayscale),
+    img.Image.from(source),
     radius: params.gaussianRadius,
   );
-  final luminance = extractLuminance(blurred);
-  final mask = detectEdgesFromBuffer(
-    luminance,
+  final red = _extractChannel(blurred, (p) => p.r.toDouble());
+  final green = _extractChannel(blurred, (p) => p.g.toDouble());
+  final blue = _extractChannel(blurred, (p) => p.b.toDouble());
+
+  final gradients = colorSobelGradients(red, green, blue, width, height);
+  final thinned = nonMaxSuppression(
+    gradients.magnitude,
+    gradients.direction,
+    width,
+    height,
+  );
+  final mask = hysteresisThreshold(
+    thinned,
     width,
     height,
     low: params.lowThreshold,
     high: params.highThreshold,
   );
 
-  final edgeImage = img.Image.from(grayscale);
+  final edgeImage = img.Image.from(source);
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       final value = mask[y * width + x];
@@ -56,12 +75,15 @@ img.Image detectEdges(
   return edgeImage;
 }
 
-/// Row-major luminance buffer (0-255) extracted from an [img.Image].
-Float32List extractLuminance(img.Image image) {
+/// Row-major buffer (0-255) of one channel of [image], picked by [select].
+Float32List _extractChannel(
+  img.Image image,
+  double Function(img.Pixel pixel) select,
+) {
   final buffer = Float32List(image.width * image.height);
   for (int y = 0; y < image.height; y++) {
     for (int x = 0; x < image.width; x++) {
-      buffer[y * image.width + x] = image.getPixel(x, y).r.toDouble();
+      buffer[y * image.width + x] = select(image.getPixel(x, y));
     }
   }
   return buffer;
@@ -77,13 +99,18 @@ class GradientResult {
   final Float32List direction;
 }
 
-/// Computes Sobel Gx/Gy gradients over a flat [width]x[height] luminance
-/// buffer, returning gradient magnitude and direction. Out-of-bounds
-/// samples are clamped to the nearest edge pixel so every pixel, including
-/// borders, gets a real gradient value.
-GradientResult sobelGradients(Float32List src, int width, int height) {
-  final magnitude = Float32List(width * height);
-  final direction = Float32List(width * height);
+class _RawGradients {
+  _RawGradients(this.gx, this.gy);
+  final Float32List gx;
+  final Float32List gy;
+}
+
+/// Computes raw Sobel Gx/Gy over a flat [width]x[height] buffer.
+/// Out-of-bounds samples are clamped to the nearest edge pixel so every
+/// pixel, including borders, gets a real gradient value.
+_RawGradients _sobelXY(Float32List src, int width, int height) {
+  final gx = Float32List(width * height);
+  final gy = Float32List(width * height);
 
   int clampX(int x) => x < 0 ? 0 : (x >= width ? width - 1 : x);
   int clampY(int y) => y < 0 ? 0 : (y >= height ? height - 1 : y);
@@ -99,13 +126,59 @@ GradientResult sobelGradients(Float32List src, int width, int height) {
       final bc = src[clampY(y + 1) * width + x];
       final br = src[clampY(y + 1) * width + clampX(x + 1)];
 
-      final gx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
-      final gy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
-
       final idx = y * width + x;
-      magnitude[idx] = math.sqrt(gx * gx + gy * gy);
-      direction[idx] = math.atan2(gy, gx);
+      gx[idx] = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+      gy[idx] = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
     }
+  }
+  return _RawGradients(gx, gy);
+}
+
+/// Computes Sobel Gx/Gy gradients over a flat [width]x[height] luminance
+/// buffer, returning gradient magnitude and direction.
+GradientResult sobelGradients(Float32List src, int width, int height) {
+  final raw = _sobelXY(src, width, height);
+  final magnitude = Float32List(width * height);
+  final direction = Float32List(width * height);
+  for (int i = 0; i < magnitude.length; i++) {
+    final gx = raw.gx[i];
+    final gy = raw.gy[i];
+    magnitude[i] = math.sqrt(gx * gx + gy * gy);
+    direction[i] = math.atan2(gy, gx);
+  }
+  return GradientResult(magnitude, direction);
+}
+
+/// Combines per-channel Sobel gradients into a single magnitude/direction
+/// field using the Di Zenzo (1986) multichannel gradient: the direction of
+/// steepest combined change across channels and its magnitude, derived
+/// from the 2x2 structure tensor summed over channels. Unlike converting
+/// to grayscale first, this correctly detects boundaries between
+/// iso-luminant colors (e.g. a colorful sunset sky) that a luminance-only
+/// gradient cannot see.
+GradientResult colorSobelGradients(
+  Float32List red,
+  Float32List green,
+  Float32List blue,
+  int width,
+  int height,
+) {
+  final r = _sobelXY(red, width, height);
+  final g = _sobelXY(green, width, height);
+  final b = _sobelXY(blue, width, height);
+
+  final magnitude = Float32List(width * height);
+  final direction = Float32List(width * height);
+  for (int i = 0; i < magnitude.length; i++) {
+    final gxx = r.gx[i] * r.gx[i] + g.gx[i] * g.gx[i] + b.gx[i] * b.gx[i];
+    final gyy = r.gy[i] * r.gy[i] + g.gy[i] * g.gy[i] + b.gy[i] * b.gy[i];
+    final gxy = r.gx[i] * r.gy[i] + g.gx[i] * g.gy[i] + b.gx[i] * b.gy[i];
+
+    final diff = gxx - gyy;
+    final f = 0.5 * (gxx + gyy + math.sqrt(diff * diff + 4 * gxy * gxy));
+
+    magnitude[i] = math.sqrt(f < 0 ? 0 : f);
+    direction[i] = 0.5 * math.atan2(2 * gxy, diff);
   }
   return GradientResult(magnitude, direction);
 }
@@ -203,8 +276,8 @@ Uint8List hysteresisThreshold(
 
 /// Runs Sobel -> non-maximum suppression -> hysteresis on a flat luminance
 /// buffer and returns a binary (0/255) edge mask of the same dimensions.
-/// Exposed separately from [detectEdges] so the algorithm can be unit
-/// tested without going through [img.Image] decoding/encoding.
+/// Exposed separately from [detectEdges] so the single-channel algorithm
+/// can be unit tested without going through [img.Image] decoding/encoding.
 Uint8List detectEdgesFromBuffer(
   Float32List luminance,
   int width,

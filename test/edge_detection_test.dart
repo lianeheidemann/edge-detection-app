@@ -61,4 +61,40 @@ void main() {
       expect(mask.any((v) => v == 255), isTrue);
     });
   });
+
+  group('colorSobelGradients', () {
+    test('detects an iso-luminant color boundary that a luminance-only '
+        'gradient misses', () {
+      const width = 10;
+      const height = 10;
+      const stepX = 5;
+      // Left patch: blue (R=0, G=0, B=200). Right patch: dark red
+      // (R=76.25, G=0, B=0) — chosen so both have ~identical luminance
+      // under standard Rec.601 weights (0.299R + 0.114B ≈ 22.8), even
+      // though the hue is completely different (this is the exact
+      // real-world case of a colorful sunset sky disappearing from a
+      // luminance-only edge detector).
+      final red = Float32List(width * height);
+      final green = Float32List(width * height);
+      final blue = Float32List(width * height);
+      final luminance = Float32List(width * height);
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final idx = y * width + x;
+          final r = x < stepX ? 0.0 : 76.25;
+          final b = x < stepX ? 200.0 : 0.0;
+          red[idx] = r;
+          blue[idx] = b;
+          luminance[idx] = 0.299 * r + 0.114 * b;
+        }
+      }
+
+      final luminanceOnly = sobelGradients(luminance, width, height);
+      final colorAware = colorSobelGradients(red, green, blue, width, height);
+
+      final boundaryIdx = 5 * width + stepX;
+      expect(luminanceOnly.magnitude[boundaryIdx], lessThan(5));
+      expect(colorAware.magnitude[boundaryIdx], greaterThan(100));
+    });
+  });
 }
