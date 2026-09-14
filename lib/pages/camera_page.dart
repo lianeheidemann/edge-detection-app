@@ -19,6 +19,8 @@ class _CameraPageState extends State<CameraPage> {
   bool _isCapturing = false;
   bool _isSwitchingCamera = false;
   bool _isPickingImage = false;
+  bool _isTogglingFlash = false;
+  FlashMode _flashMode = FlashMode.off;
   String _errorMessage = '';
 
   @override
@@ -56,6 +58,7 @@ class _CameraPageState extends State<CameraPage> {
       await _cameraController?.dispose();
       setState(() {
         _cameraController = controller;
+        _flashMode = FlashMode.off;
         _isLoading = false;
       });
     } on CameraException catch (error) {
@@ -107,6 +110,7 @@ class _CameraPageState extends State<CameraPage> {
       setState(() {
         _cameraController = newController;
         _selectedCameraIndex = nextIndex;
+        _flashMode = FlashMode.off;
       });
     } on CameraException {
       if (mounted) {
@@ -117,6 +121,31 @@ class _CameraPageState extends State<CameraPage> {
       await _initializeCamera();
     } finally {
       if (mounted) setState(() => _isSwitchingCamera = false);
+    }
+  }
+
+  Future<void> _toggleFlash() async {
+    final controller = _cameraController;
+    if (controller == null || _isTogglingFlash) return;
+
+    final newMode = _flashMode == FlashMode.off
+        ? FlashMode.torch
+        : FlashMode.off;
+    setState(() => _isTogglingFlash = true);
+    try {
+      await controller.setFlashMode(newMode);
+      if (!mounted) return;
+      setState(() => _flashMode = newMode);
+    } on CameraException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Flash not available on this camera.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTogglingFlash = false);
     }
   }
 
@@ -198,7 +227,11 @@ class _CameraPageState extends State<CameraPage> {
       body: SafeArea(
         child: Column(
           children: [
-            const _CameraHeader(),
+            _CameraHeader(
+              flashMode: _flashMode,
+              canToggleFlash: _cameraController != null && !_isTogglingFlash,
+              onToggleFlash: _toggleFlash,
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -285,10 +318,19 @@ class _CameraPageState extends State<CameraPage> {
 }
 
 class _CameraHeader extends StatelessWidget {
-  const _CameraHeader();
+  const _CameraHeader({
+    required this.flashMode,
+    required this.canToggleFlash,
+    required this.onToggleFlash,
+  });
+
+  final FlashMode flashMode;
+  final bool canToggleFlash;
+  final VoidCallback onToggleFlash;
 
   @override
   Widget build(BuildContext context) {
+    final isFlashOn = flashMode != FlashMode.off;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Row(
@@ -303,23 +345,30 @@ class _CameraHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Edge Detection',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Edge Detection',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Image processing',
-                style: TextStyle(color: Color(0xFFA8A8BA), fontSize: 13),
-              ),
-            ],
+                SizedBox(height: 2),
+                Text(
+                  'Image processing',
+                  style: TextStyle(color: Color(0xFFA8A8BA), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          _SecondaryCameraButton(
+            icon: isFlashOn ? Icons.flash_on : Icons.flash_off,
+            label: isFlashOn ? 'Turn off flash' : 'Turn on flash',
+            onPressed: canToggleFlash ? onToggleFlash : null,
           ),
         ],
       ),
