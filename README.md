@@ -8,6 +8,12 @@ A Flutter mobile application that captures images with the device camera and app
 
 ---
 
+## Interface
+
+<img width="600" src="assets/interface-1.png" />
+
+---
+
 ## Overview
 
 The application allows users to capture a photo or select one from the device gallery and automatically view:
@@ -80,12 +86,6 @@ flutter build apk --debug
 ```
 
 A GitHub Actions workflow (`.github/workflows/temporary-apk.yml`) also builds a debug APK automatically on every push to `main` and publishes it as a downloadable artifact.
-
----
-
-## Demonstration
-
-<img width="35%" src="https://github.com/user-attachments/assets/37a288bb-7e69-4498-9ac3-039f15e6b9c5" alt="Edge Detection App demonstration" />
 
 ---
 
