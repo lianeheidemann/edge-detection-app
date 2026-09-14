@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icons/github-adaptive-image-icon.svg"
+  <img src="assets/icons/app-icon.svg"
        width="220"
        alt="Image processing icon">
 </p>
