@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Image scanner</title>
+  <desc id="desc">Purple image scanner icon with a transparent background.</desc>
+  <defs>
+    <linearGradient id="framePaint" x1="78" y1="92" x2="435" y2="425" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6D4AFF"/><stop offset="0.55" stop-color="#8B5CF6"/><stop offset="1" stop-color="#B69CFF"/>
+    </linearGradient>
+    <linearGradient id="mountainPaint" x1="139" y1="343" x2="339" y2="245" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#976DFF"/><stop offset="0.5" stop-color="#8150F5"/><stop offset="1" stop-color="#6430E5"/>
+    </linearGradient>
+    <linearGradient id="smallPaint" x1="292" y1="352" x2="374" y2="285" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9F7AEA"/><stop offset="1" stop-color="#7040E9"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .rim { stroke: #4C1D95; }
+    @media (prefers-color-scheme: dark) { .rim { stroke: #EEE9FF; } }
+  </style>
+
+  <!-- Scanner corners: equal size, equal distance from every edge. -->
+  <g fill="none" stroke="url(#framePaint)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M88 177V121c0-18 15-33 33-33h56"/>
+    <path d="M335 88h56c18 0 33 15 33 33v56"/>
+    <path d="M424 335v56c0 18-15 33-33 33h-56"/>
+    <path d="M177 424h-56c-18 0-33-15-33-33v-56"/>
+  </g>
+
+  <!-- Sun -->
+  <circle class="rim" cx="326" cy="206" r="46" fill="none" stroke-width="18"/>
+
+  <!-- Small mountain behind the main mountain. -->
+  <path class="rim" d="M271 334 318 281c8-10 23-10 31 0l45 53c12 14 2 34-16 34H282Z"
+        fill="url(#smallPaint)" stroke-width="18" stroke-linejoin="round"/>
+
+  <!-- Main wide mountain, matching the reference proportions. -->
+  <path class="rim" d="M120 334 211 225c8-11 25-11 34 0l101 113c10 12 1 30-14 30H135c-20 0-29-23-15-34Z"
+        fill="url(#mountainPaint)" stroke-width="18" stroke-linejoin="round"/>
+</svg>
