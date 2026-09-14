@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'result_page.dart';
 
@@ -12,8 +13,12 @@ class CameraPage extends StatefulWidget {
 
 class _CameraPageState extends State<CameraPage> {
   CameraController? _cameraController;
+  List<CameraDescription> _cameras = const [];
+  int _selectedCameraIndex = 0;
   bool _isLoading = true;
   bool _isCapturing = false;
+  bool _isSwitchingCamera = false;
+  bool _isPickingImage = false;
   String _errorMessage = '';
 
   @override
@@ -30,16 +35,16 @@ class _CameraPageState extends State<CameraPage> {
       });
     }
     try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        throw CameraException('cameraNotFound', 'Nenhuma câmera encontrada.');
+      _cameras = await availableCameras();
+      if (_cameras.isEmpty) {
+        throw CameraException('cameraNotFound', 'No camera was found.');
       }
-      final backCamera = cameras.firstWhere(
+      final backCameraIndex = _cameras.indexWhere(
         (camera) => camera.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
       );
+      _selectedCameraIndex = backCameraIndex >= 0 ? backCameraIndex : 0;
       final controller = CameraController(
-        backCamera,
+        _cameras[_selectedCameraIndex],
         ResolutionPreset.high,
         enableAudio: false,
       );
@@ -57,22 +62,92 @@ class _CameraPageState extends State<CameraPage> {
       if (!mounted) return;
       setState(() {
         _errorMessage = error.code == 'CameraAccessDenied'
-            ? 'Permita o acesso à câmera nas configurações do aparelho.'
-            : (error.description ?? 'Não foi possível abrir a câmera.');
+            ? 'Allow camera access in the device settings.'
+            : (error.description ?? 'Could not open the camera.');
         _isLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Não foi possível abrir a câmera.';
+        _errorMessage = 'Could not open the camera.';
         _isLoading = false;
       });
     }
   }
 
+  Future<void> _switchCamera() async {
+    if (_isSwitchingCamera || _cameras.length < 2) return;
+
+    final currentDirection = _cameras[_selectedCameraIndex].lensDirection;
+    final targetDirection = currentDirection == CameraLensDirection.back
+        ? CameraLensDirection.front
+        : CameraLensDirection.back;
+    final nextIndex = _cameras.indexWhere(
+      (camera) => camera.lensDirection == targetDirection,
+    );
+    if (nextIndex < 0) return;
+
+    final oldController = _cameraController;
+    setState(() {
+      _isSwitchingCamera = true;
+      _cameraController = null;
+    });
+    await oldController?.dispose();
+    try {
+      final newController = CameraController(
+        _cameras[nextIndex],
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+      await newController.initialize();
+      if (!mounted) {
+        await newController.dispose();
+        return;
+      }
+      setState(() {
+        _cameraController = newController;
+        _selectedCameraIndex = nextIndex;
+      });
+    } on CameraException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not switch cameras.')),
+        );
+      }
+      await _initializeCamera();
+    } finally {
+      if (mounted) setState(() => _isSwitchingCamera = false);
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    if (_isPickingImage || _isCapturing || _isSwitchingCamera) return;
+    setState(() => _isPickingImage = true);
+    try {
+      final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image == null || !mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ResultPage(imagePath: image.path)),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the photo gallery.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
+  }
+
   Future<void> _takePhoto() async {
     final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized || _isCapturing) {
+    if (controller == null ||
+        !controller.value.isInitialized ||
+        _isCapturing ||
+        _isSwitchingCamera ||
+        _isPickingImage) {
       return;
     }
     setState(() => _isCapturing = true);
@@ -86,7 +161,7 @@ class _CameraPageState extends State<CameraPage> {
     } on CameraException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível capturar a foto.')),
+          const SnackBar(content: Text('Could not capture the photo.')),
         );
       }
     } finally {
@@ -110,7 +185,7 @@ class _CameraPageState extends State<CameraPage> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 18),
-              Text('Preparando a câmera…'),
+              Text('Preparing the camera…'),
             ],
           ),
         ),
@@ -132,14 +207,27 @@ class _CameraPageState extends State<CameraPage> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CameraPreview(_cameraController!),
+                      if (_cameraController != null)
+                        CameraPreview(_cameraController!)
+                      else
+                        const ColoredBox(
+                          color: Colors.black,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
                       const IgnorePointer(child: _FocusGuide()),
                     ],
                   ),
                 ),
               ),
             ),
-            _CaptureControls(isCapturing: _isCapturing, onCapture: _takePhoto),
+            _CaptureControls(
+              isCapturing: _isCapturing,
+              isBusy: _isSwitchingCamera || _isPickingImage,
+              canSwitchCamera: _cameras.length > 1,
+              onCapture: _takePhoto,
+              onGallery: _pickFromGallery,
+              onSwitchCamera: _switchCamera,
+            ),
           ],
         ),
       ),
@@ -162,7 +250,7 @@ class _CameraPageState extends State<CameraPage> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Câmera indisponível',
+                  'Camera unavailable',
                   style: Theme.of(context).textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -172,7 +260,7 @@ class _CameraPageState extends State<CameraPage> {
                 FilledButton.icon(
                   onPressed: _initializeCamera,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Tentar novamente'),
+                  label: const Text('Try again'),
                 ),
               ],
             ),
@@ -188,26 +276,25 @@ class _CameraHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 18, 20, 16),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Row(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(0xFF6C63FF),
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(9),
-              child: Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              'assets/icons/app-icon.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
             ),
           ),
-          SizedBox(width: 12),
-          Column(
+          const SizedBox(width: 12),
+          const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Detector de Bordas',
+                'Edge Detection',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 19,
@@ -216,7 +303,7 @@ class _CameraHeader extends StatelessWidget {
               ),
               SizedBox(height: 2),
               Text(
-                'Processamento de imagem',
+                'Image processing',
                 style: TextStyle(color: Color(0xFFA8A8BA), fontSize: 13),
               ),
             ],
@@ -228,10 +315,21 @@ class _CameraHeader extends StatelessWidget {
 }
 
 class _CaptureControls extends StatelessWidget {
-  const _CaptureControls({required this.isCapturing, required this.onCapture});
+  const _CaptureControls({
+    required this.isCapturing,
+    required this.isBusy,
+    required this.canSwitchCamera,
+    required this.onCapture,
+    required this.onGallery,
+    required this.onSwitchCamera,
+  });
 
   final bool isCapturing;
+  final bool isBusy;
+  final bool canSwitchCamera;
   final VoidCallback onCapture;
+  final VoidCallback onGallery;
+  final VoidCallback onSwitchCamera;
 
   @override
   Widget build(BuildContext context) {
@@ -240,49 +338,93 @@ class _CaptureControls extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Enquadre o objeto e mantenha o celular firme',
+            'Frame the object and keep the phone steady',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFFC6C6D4), fontSize: 13),
           ),
           const SizedBox(height: 16),
-          Semantics(
-            button: true,
-            label: isCapturing ? 'Capturando foto' : 'Capturar foto',
-            child: GestureDetector(
-              onTap: isCapturing ? null : onCapture,
-              child: Container(
-                width: 72,
-                height: 72,
-                padding: const EdgeInsets.all(5),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isCapturing
-                        ? const Color(0xFFAAA7E8)
-                        : const Color(0xFF6C63FF),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _SecondaryCameraButton(
+                icon: Icons.photo_library_outlined,
+                label: 'Gallery',
+                onPressed: isBusy || isCapturing ? null : onGallery,
+              ),
+              Semantics(
+                button: true,
+                label: isCapturing ? 'Capturing photo' : 'Take photo',
+                child: GestureDetector(
+                  onTap: isCapturing || isBusy ? null : onCapture,
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCapturing
+                            ? const Color(0xFFAAA7E8)
+                            : const Color(0xFF6C63FF),
+                      ),
+                      child: isCapturing
+                          ? const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 27,
+                            ),
+                    ),
                   ),
-                  child: isCapturing
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.camera_alt_rounded,
-                          color: Colors.white,
-                          size: 27,
-                        ),
                 ),
               ),
-            ),
+              _SecondaryCameraButton(
+                icon: Icons.cameraswitch_outlined,
+                label: 'Switch camera',
+                onPressed: canSwitchCamera && !isBusy && !isCapturing
+                    ? onSwitchCamera
+                    : null,
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SecondaryCameraButton extends StatelessWidget {
+  const _SecondaryCameraButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filledTonal(
+      tooltip: label,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      color: Colors.white,
+      style: IconButton.styleFrom(
+        backgroundColor: const Color(0xFF2A2A3A),
+        disabledBackgroundColor: const Color(0xFF242432),
+        minimumSize: const Size(52, 52),
       ),
     );
   }

@@ -29,7 +29,7 @@ class _ResultPageState extends State<ResultPage> {
     try {
       final originalBytes = await File(widget.imagePath).readAsBytes();
       final originalImage = img.decodeImage(originalBytes);
-      if (originalImage == null) throw StateError('Imagem inválida');
+      if (originalImage == null) throw StateError('Invalid image');
 
       final grayscale = img.grayscale(originalImage);
       final folder = File(widget.imagePath).parent.path;
@@ -57,7 +57,7 @@ class _ResultPageState extends State<ResultPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Não foi possível processar esta imagem.';
+        _errorMessage = 'Could not process this image.';
         _isProcessing = false;
       });
     }
@@ -73,10 +73,10 @@ class _ResultPageState extends State<ResultPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Resultado da análise'),
+        title: const Text('Analysis results'),
         actions: [
           IconButton(
-            tooltip: 'Nova foto',
+            tooltip: 'New photo',
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.camera_alt_outlined),
           ),
@@ -94,7 +94,7 @@ class _ResultPageState extends State<ResultPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Compare as etapas',
+                      'Compare the stages',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -103,21 +103,29 @@ class _ResultPageState extends State<ResultPage> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Veja como a imagem muda durante o processamento.',
+                      'See how the image changes during processing.',
                       style: TextStyle(color: Color(0xFF68687A)),
                     ),
                     const SizedBox(height: 20),
-                    SegmentedButton<int>(
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(value: 0, label: Text('Original')),
-                        ButtonSegment(value: 1, label: Text('Cinza')),
-                        ButtonSegment(value: 2, label: Text('Bordas')),
-                      ],
-                      selected: {_selectedView},
-                      onSelectionChanged: (selection) {
-                        setState(() => _selectedView = selection.first);
-                      },
+                    Row(
+                      children: List.generate(3, (index) {
+                        const labels = ['Original', 'Grayscale', 'Edges'];
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: index < 2 ? 8 : 0,
+                            ),
+                            child: _ResultThumbnail(
+                              label: labels[index],
+                              image: _images[index]!,
+                              isSelected: _selectedView == index,
+                              onTap: () {
+                                setState(() => _selectedView = index);
+                              },
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                     const SizedBox(height: 20),
                     Expanded(
@@ -152,7 +160,7 @@ class _ResultPageState extends State<ResultPage> {
                       ),
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.camera_alt_rounded),
-                      label: const Text('Capturar nova imagem'),
+                      label: const Text('Capture a new image'),
                     ),
                   ],
                 ),
@@ -162,19 +170,81 @@ class _ResultPageState extends State<ResultPage> {
   }
 }
 
+class _ResultThumbnail extends StatelessWidget {
+  const _ResultThumbnail({
+    required this.label,
+    required this.image,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final File image;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: 'Exibir $label',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: isSelected ? primary : const Color(0xFFE8E8F0),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              AspectRatio(
+                aspectRatio: 1.25,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: ColoredBox(
+                    color: const Color(0xFF151520),
+                    child: Image.file(image, fit: BoxFit.cover),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF24243A),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoPanel extends StatelessWidget {
   const _InfoPanel({required this.selectedView});
 
   final int selectedView;
   static const _titles = [
-    'Imagem original',
-    'Tons de cinza',
-    'Bordas detectadas',
+    'Original image',
+    'Grayscale',
+    'Detected edges',
   ];
   static const _descriptions = [
-    'Imagem capturada pela câmera, antes do processamento.',
-    'As cores foram convertidas em intensidades de luminosidade.',
-    'As mudanças mais fortes de intensidade aparecem destacadas.',
+    'Image captured by the camera before processing.',
+    'Colors were converted into brightness intensities.',
+    'The strongest intensity changes are highlighted.',
   ];
 
   @override
@@ -190,7 +260,7 @@ class _InfoPanel extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              selectedView == 2 ? Icons.auto_awesome : Icons.image_outlined,
+              selectedView == 2 ? Icons.search_rounded : Icons.image_outlined,
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
@@ -229,11 +299,11 @@ class _ProcessingView extends StatelessWidget {
           CircularProgressIndicator(),
           SizedBox(height: 20),
           Text(
-            'Detectando bordas…',
+            'Detecting edges…',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 6),
-          Text('Isso pode levar alguns segundos.'),
+          Text('This may take a few seconds.'),
         ],
       ),
     );
@@ -259,7 +329,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Voltar para a câmera'),
+              child: const Text('Back to camera'),
             ),
           ],
         ),

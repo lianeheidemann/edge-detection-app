@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     
     <application
-        android:label="detector_de_bordas2"
+        android:label="Edge Detection"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
