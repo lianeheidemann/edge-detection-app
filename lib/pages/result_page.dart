@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'package:edge_detection/edge_detection.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
@@ -33,14 +31,23 @@ class _ResultPageState extends State<ResultPage> {
       final originalImage = img.decodeImage(originalBytes);
       if (originalImage == null) throw StateError('Invalid image');
 
-      final grayscale = img.grayscale(img.Image.from(originalImage));
+      final grayscale = img.grayscale(originalImage);
       final folder = File(widget.imagePath).parent.path;
       final grayscaleFile = File('$folder/grayscale.png')
         ..writeAsBytesSync(img.encodePng(grayscale));
 
-      final edgePngBytes = await compute(_detectEdgesPng, originalImage);
+      final edgeDetected = img.Image.from(grayscale);
+      for (int y = 1; y < grayscale.height - 1; y++) {
+        for (int x = 1; x < grayscale.width - 1; x++) {
+          final left = grayscale.getPixel(x - 1, y).r.toInt();
+          final right = grayscale.getPixel(x + 1, y).r.toInt();
+          final edgeValue = (right - left).abs() > 25 ? 255 : 0;
+          edgeDetected.setPixelRgb(x, y, edgeValue, edgeValue, edgeValue);
+        }
+      }
+
       final edgeFile = File('$folder/edges.png')
-        ..writeAsBytesSync(edgePngBytes);
+        ..writeAsBytesSync(img.encodePng(edgeDetected));
       if (!mounted) return;
       setState(() {
         _grayscaleImage = grayscaleFile;
@@ -161,13 +168,6 @@ class _ResultPageState extends State<ResultPage> {
             ),
     );
   }
-}
-
-/// Runs the Canny-style edge detection pipeline and encodes the result as
-/// PNG bytes. Must stay top-level (no closures over State/BuildContext) so
-/// it can be dispatched to a background isolate via [compute].
-Uint8List _detectEdgesPng(img.Image source) {
-  return img.encodePng(detectEdges(source));
 }
 
 class _ResultThumbnail extends StatelessWidget {

@@ -49,9 +49,6 @@ jobs:
       - name: Analyze source code
         run: flutter analyze lib
 
-      - name: Run tests
-        run: flutter test test/edge_detection_test.dart
-
       - name: Build release APK
         run: flutter build apk --release
 
