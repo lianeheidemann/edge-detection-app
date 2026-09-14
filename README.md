@@ -38,11 +38,6 @@ The application allows users to capture a photo or select one from the device ga
 
 ---
 
-## Technologies
-
-- Flutter
-- Dart
-
 ### Key packages
 
 - [`camera`](https://pub.dev/packages/camera) — device camera access and capture
