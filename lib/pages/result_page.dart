@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:edge_detection/edge_detection.dart';
 import 'package:flutter/foundation.dart';
