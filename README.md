@@ -20,6 +20,8 @@
 
 <p align="center">A Flutter mobile application that captures images with the device camera and applies image-processing techniques.</p>
 
+---
+
 ## Interface
 
 <img src="assets/interface-2.png" />
