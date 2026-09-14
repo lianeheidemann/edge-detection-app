@@ -1,4 +1,4 @@
-# Edge Detection App
+# Edge Detection
 
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
@@ -10,7 +10,7 @@ A Flutter mobile application that captures images with the device camera and app
 
 ## Overview
 
-The application allows users to take a photo and automatically view:
+The application allows users to capture a photo or select one from the device gallery and automatically view:
 
 - The original image
 - A grayscale version
@@ -28,9 +28,11 @@ The application allows users to take a photo and automatically view:
 ## Features
 
 - Capture images with the device camera
+- Switch between the front and rear cameras
+- Import images from the device gallery
 - Convert images to grayscale automatically
 - Apply a basic edge-detection algorithm
-- Display the original and processed images
+- Compare the original, grayscale, and edge-detected images side by side
 - Navigate through a simple capture-and-results interface
 
 ---
@@ -42,4 +44,3 @@ The application allows users to take a photo and automatically view:
 ---
 
 <p align="center">Developed by <strong>Liane Heidemann</strong></p>
-

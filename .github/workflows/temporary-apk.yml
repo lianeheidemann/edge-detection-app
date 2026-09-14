@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - codex/interface-apk-test
+      - main
 
 jobs:
   build-apk:
@@ -28,10 +28,13 @@ jobs:
           cache: true
 
       - name: Restore missing Android project files
-        run: flutter create --platforms=android --project-name detector_de_bordas2 .
+        run: flutter create --platforms=android --project-name edge_detection .
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate app launcher icon
+        run: dart run flutter_launcher_icons
 
       - name: Format source for the runner
         run: dart format lib

@@ -12,7 +12,7 @@ class EdgeDetectionApp extends StatelessWidget {
     const background = Color(0xFFF7F7FC);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Detector de Bordas',
+      title: 'Edge Detection',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
