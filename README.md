@@ -20,13 +20,9 @@
 
 <p align="center">A Flutter mobile application that captures images with the device camera and applies image-processing techniques.</p>
 
----
-
 ## Interface
 
 <img src="assets/interface-2.png" />
-
----
 
 ## Overview
 
@@ -36,15 +32,11 @@ The application allows users to capture a photo or select one from the device ga
 - A grayscale version
 - A version processed with basic edge detection
 
----
-
 ### Key packages
 
 - [`camera`](https://pub.dev/packages/camera) — device camera access and capture
 - [`image_picker`](https://pub.dev/packages/image_picker) — importing images from the gallery
 - [`image`](https://pub.dev/packages/image) — grayscale conversion and edge-detection processing
-
----
 
 ## Features
 
@@ -56,8 +48,6 @@ The application allows users to capture a photo or select one from the device ga
 - Compare the original, grayscale, and edge-detected images side by side
 - Navigate through a simple capture-and-results interface
 
----
-
 ## Project structure
 
 ```
@@ -67,8 +57,6 @@ lib/
     ├── camera_page.dart   # Camera preview, capture, and gallery import
     └── result_page.dart   # Original, grayscale, and edge-detection comparison
 ```
-
----
 
 ## Getting started
 
