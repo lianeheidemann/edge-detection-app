@@ -44,6 +44,7 @@ The application allows users to capture a photo or select one from the device ga
 
 - Capture images with the device camera
 - Switch between the front and rear cameras
+- Toggle flash/torch mode
 - Import images from the device gallery
 - Convert images to grayscale automatically
 - Apply a basic edge-detection algorithm
@@ -84,7 +85,14 @@ flutter run
 flutter build apk --debug
 ```
 
-A GitHub Actions workflow (`.github/workflows/temporary-apk.yml`) also builds a debug APK automatically on every push to `main` and publishes it as a downloadable artifact.
+### CI/CD
+
+- **Temporary APK** (`.github/workflows/temporary-apk.yml`) — builds a debug APK on every push to `main` and publishes it as a downloadable workflow artifact.
+- **Release APK** (`.github/workflows/release.yml`) — builds a release APK and publishes it to [GitHub Releases](https://github.com/lianeheidemann/edge-detection-app/releases) when a `v*` tag is pushed, or on manual dispatch.
+
+## License
+
+Distributed under the [MIT License](LICENSE).
 
 ---
 
