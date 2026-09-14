@@ -24,7 +24,7 @@
 
 ## Interface
 
-<img src="assets/interface-1.png" />
+<img src="assets/interface-2.png" />
 
 ---
 
