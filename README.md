@@ -12,6 +12,12 @@
   <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android">
 </p>
 
+<div align="center">
+  
+[![Release APK](https://github.com/lianeheidemann/edge-detection-app/actions/workflows/release.yml/badge.svg)](https://github.com/lianeheidemann/edge-detection-app/actions/workflows/release.yml)
+
+</div>
+
 <p align="center">A Flutter mobile application that captures images with the device camera and applies image-processing techniques.</p>
 
 ---
