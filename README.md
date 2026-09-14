@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="assets/icons/github-adaptive-image-icon.svg"
+       width="220"
+       alt="Image processing icon">
+</p>
+
 # Edge Detection
 
 ![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
