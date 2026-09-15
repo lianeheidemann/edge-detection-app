@@ -124,13 +124,19 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  static const List<FlashMode> _flashModeCycle = [
+    FlashMode.off,
+    FlashMode.auto,
+    FlashMode.always,
+  ];
+
   Future<void> _toggleFlash() async {
     final controller = _cameraController;
     if (controller == null || _isTogglingFlash) return;
 
-    final newMode = _flashMode == FlashMode.off
-        ? FlashMode.torch
-        : FlashMode.off;
+    final currentIndex = _flashModeCycle.indexOf(_flashMode);
+    final newMode =
+        _flashModeCycle[(currentIndex + 1) % _flashModeCycle.length];
     setState(() => _isTogglingFlash = true);
     try {
       await controller.setFlashMode(newMode);
@@ -330,7 +336,12 @@ class _CameraHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isFlashOn = flashMode != FlashMode.off;
+    final (icon, label) = switch (flashMode) {
+      FlashMode.auto => (Icons.flash_auto, 'Flash auto · tap to turn on'),
+      FlashMode.always ||
+      FlashMode.torch => (Icons.flash_on, 'Flash on · tap to turn off'),
+      FlashMode.off => (Icons.flash_off, 'Flash off · tap for auto'),
+    };
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Row(
@@ -366,8 +377,8 @@ class _CameraHeader extends StatelessWidget {
             ),
           ),
           _SecondaryCameraButton(
-            icon: isFlashOn ? Icons.flash_on : Icons.flash_off,
-            label: isFlashOn ? 'Turn off flash' : 'Turn on flash',
+            icon: icon,
+            label: label,
             onPressed: canToggleFlash ? onToggleFlash : null,
           ),
         ],
