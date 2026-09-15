@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import 'result_page.dart';
@@ -127,7 +130,7 @@ class _CameraPageState extends State<CameraPage> {
   static const List<FlashMode> _flashModeCycle = [
     FlashMode.off,
     FlashMode.auto,
-    FlashMode.always,
+    FlashMode.torch,
   ];
 
   Future<void> _toggleFlash() async {
@@ -188,6 +191,10 @@ class _CameraPageState extends State<CameraPage> {
     setState(() => _isCapturing = true);
     try {
       final photo = await controller.takePicture();
+      if (_cameras[_selectedCameraIndex].lensDirection ==
+          CameraLensDirection.front) {
+        await _unmirrorFrontPhoto(photo.path);
+      }
       if (!mounted) return;
       await Navigator.push(
         context,
@@ -201,6 +208,18 @@ class _CameraPageState extends State<CameraPage> {
       }
     } finally {
       if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  Future<void> _unmirrorFrontPhoto(String path) async {
+    try {
+      final file = File(path);
+      final decoded = img.decodeImage(await file.readAsBytes());
+      if (decoded == null) return;
+      final flipped = img.flipHorizontal(decoded);
+      await file.writeAsBytes(img.encodeJpg(flipped));
+    } catch (_) {
+      // Keep the original (mirrored) photo if flipping fails.
     }
   }
 
